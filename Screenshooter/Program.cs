@@ -64,7 +64,7 @@ class Program
 
         if (filePath == null || filePath.Count() == 0)
         {
-            filePath = appPath + "\\" + DateTime.Now.ToString("M-dd-yyyy--HH-mm-ss") + ".png";
+            filePath = appPath + "\\" + DateTime.Now.ToString("M-dd-yyyy_HH-mm-ss") + ".png";
         }
         else if (File.Exists(filePath))
         {
@@ -88,7 +88,14 @@ class Program
         }
         else
         {
-            filePath = filePath + ".png";
+            if (filePath.EndsWith("\\"))
+            {
+                filePath = filePath + DateTime.Now.ToString("M-dd-yyyy_HH-mm-ss") + ".png";
+            }
+            else
+            {
+                filePath = filePath + "\\" + DateTime.Now.ToString("M-dd-yyyy_HH-mm-ss") + ".png";
+            }
         }
 
         Console.WriteLine("[+] Screenshot location: " + Path.GetFullPath(filePath));
@@ -137,7 +144,7 @@ class Program
         catch (System.Runtime.InteropServices.ExternalException)
         {
             Console.WriteLine("[-] Error with path given (unable to save bitmap there)\n");
-            filePath = appPath + "\\" + DateTime.Now.ToString("M-dd-yyyy--HH-mm-ss") + ".png";
+            filePath = appPath + "\\" + DateTime.Now.ToString("M-dd-yyyy_HH-mm-ss") + ".png";
             Console.WriteLine("[+] Using default screenshot location: " + Path.GetFullPath(filePath));
             Shooter(filePath);
         }
