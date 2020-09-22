@@ -7,13 +7,20 @@ using System.Windows.Forms;
 using System.Diagnostics;
 using System.Security.Principal;
 using System.Threading;
+using Accord.Video.FFMPEG;
 
 class Program
 {
     [System.Runtime.InteropServices.DllImport("user32.dll")]
-    public static extern bool SetProcessDPIAware();
+    static extern bool SetProcessDPIAware();
+    static bool record = false;
+    static int timeToRecord = 10;
+    public static VideoFileWriter vf = new VideoFileWriter();
+    static System.Windows.Forms.Timer myTimer = new System.Windows.Forms.Timer();
+    static int alarmCounter = 1;
+    static bool exitFlag = false;
 
-    private static void Shooter(string filePath)
+    private static Bitmap Shooter(string filePath)
     {
         // Screenshot block to screenshot Multiple screens
         SetProcessDPIAware();
@@ -24,10 +31,77 @@ class Program
                                     SystemInformation.VirtualScreen.Size,
                                     CopyPixelOperation.SourceCopy);
 
-        screenshot.Save(filePath, System.Drawing.Imaging.ImageFormat.Png);
-        Console.WriteLine("[+] Screenshot successful, exiting now");
+        if (!String.IsNullOrEmpty(filePath))
+        {
+            screenshot.Save(filePath, System.Drawing.Imaging.ImageFormat.Png);
+            Console.WriteLine("[+] Screenshot successful, exiting now");
+            return null;
+        }
+        //Allow for reuse when capturing video
+        else
+        {
+            return screenshot;
+        }
+
     }
 
+    // This is the method to run when the timer is raised.
+    // https://docs.microsoft.com/en-us/dotnet/api/system.windows.forms.timer?view=netcore-3.1
+    private static void TimerEventProcessor(Object myObject, EventArgs myEventArgs)
+    {
+        //myTimer.Stop();
+
+        // Displays a message box asking whether to continue running the timer.
+        if (alarmCounter < timeToRecord * 10)
+        {
+            Bitmap screenGrab = Shooter(String.Empty);
+            vf.WriteVideoFrame(screenGrab);
+
+            // Restarts the timer and increments the counter.
+            alarmCounter += 1;
+            //myTimer.Enabled = true;
+        }
+        else
+        {
+            // Stops the timer.
+            exitFlag = true;
+        }
+    }
+
+    private static void Watcher2(string filePath)
+    {
+        Console.WriteLine("Entered watcher2");
+        int videoBitRate = 1200 * 1000;
+        vf.Open(filePath, SystemInformation.VirtualScreen.Width, SystemInformation.VirtualScreen.Height, 24, VideoCodec.MPEG4, videoBitRate);
+        for (int i = 0; i < timeToRecord + 2; i++)
+        {
+            Bitmap screenGrab = Shooter(String.Empty);
+            vf.WriteVideoFrame(screenGrab, TimeSpan.FromSeconds(i));
+            Thread.Sleep(1000);
+        }
+        Thread.Sleep(1000);
+        vf.Close();
+
+    }
+
+    private static void Watcher(string filePath)
+    {
+        myTimer.Tick += new EventHandler(TimerEventProcessor);
+
+        vf.Open(filePath, SystemInformation.VirtualScreen.Width, SystemInformation.VirtualScreen.Height, 500, VideoCodec.MPEG4, 50000000);
+
+        // Sets the timer interval to 1 seconds.
+        myTimer.Interval = 1000;
+        myTimer.Start();
+
+        // Runs the timer, and raises the event.
+        while (exitFlag == false)
+        {
+            // Processes all the events in the queue.
+            Application.DoEvents();
+        }
+        vf.Close();
+    }
 
     [System.Runtime.InteropServices.DllImport("kernel32.dll")]
     static extern bool ProcessIdToSessionId(uint dwProcessId, out uint pSessionId);
@@ -45,44 +119,36 @@ class Program
         return 1U; // fallback, the console session is session 1
     }
 
-    public static void Main(string[] args)
+    private static string GetWriteLocation(string filePath)
     {
-        // Checks for too many args -> creates a string from array -> checks for no args -> checks if the file already exists -> screenshot
-        string filePath;
-        bool isElevated;
         string appPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        string extension;
 
-        if (args.Count() > 1)
-        {
-            Console.WriteLine("\n[-] Too many inputs!\n[-] Error: Exiting...");
-            return;
-        }
+        if (record)
+            extension = ".avi";
         else
-        {
-            filePath = string.Join("", args);
-        }
+            extension = ".png";
+        
+        if (String.IsNullOrEmpty(filePath))
+            return appPath + "\\" + DateTime.Now.ToString("M-dd-yyyy_HH-mm-ss") + extension;
 
-        if (filePath == null || filePath.Count() == 0)
-        {
-            filePath = appPath + "\\" + DateTime.Now.ToString("M-dd-yyyy_HH-mm-ss") + ".png";
-        }
-        else if (File.Exists(filePath))
+        if (File.Exists(filePath))
         {
             Console.WriteLine("\n[-] ERROR: File already exists!\n[-] Error: Exiting...");
-            return;
+            return appPath + "\\" + DateTime.Now.ToString("M-dd-yyyy_HH-mm-ss") + extension;
         }
         else if (Directory.Exists(filePath))
         {
             if (filePath.EndsWith("\\"))
             {
-                filePath = filePath + DateTime.Now.ToString("M-dd-yyyy_HH-mm-ss") + ".png";
+                filePath = filePath + DateTime.Now.ToString("M-dd-yyyy_HH-mm-ss") + extension;
             }
             else
             {
-                filePath = filePath + "\\" + DateTime.Now.ToString("M-dd-yyyy_HH-mm-ss") + ".png";
+                filePath = filePath + "\\" + DateTime.Now.ToString("M-dd-yyyy_HH-mm-ss") + extension;
             }
         }
-        else if (filePath.EndsWith(".png"))
+        else if (filePath.EndsWith(".png") || filePath.EndsWith(".avi"))
         {
             //do nothing, it's a good file name probs
         }
@@ -90,67 +156,173 @@ class Program
         {
             if (filePath.EndsWith("\\"))
             {
-                filePath = filePath + DateTime.Now.ToString("M-dd-yyyy_HH-mm-ss") + ".png";
+                filePath = filePath + DateTime.Now.ToString("M-dd-yyyy_HH-mm-ss") + extension;
             }
             else
             {
-                filePath = filePath + "\\" + DateTime.Now.ToString("M-dd-yyyy_HH-mm-ss") + ".png";
+                filePath = filePath + "\\" + DateTime.Now.ToString("M-dd-yyyy_HH-mm-ss") + extension;
             }
         }
 
-        Console.WriteLine("[+] Screenshot location: " + Path.GetFullPath(filePath));
+        return filePath;
+    }
 
-        try
+    private static string ParseArgs(string[] commands)
+    {
+        if (commands.Count() > 3)
         {
-            Shooter(filePath);
+            Console.WriteLine("\n[-]Error: Too many inputs! Exiting...");
+            return null;
         }
-        catch (System.ComponentModel.Win32Exception a)
+
+        if (commands.Count() == 3)
         {
-            Console.WriteLine("[+] User may be running inside RDP session, attempting to attach with tscon...\n");
-
-            using (WindowsIdentity identity = WindowsIdentity.GetCurrent())
+            if (commands[0] == "record")
             {
-                WindowsPrincipal principal = new WindowsPrincipal(identity);
-                isElevated = principal.IsInRole(WindowsBuiltInRole.Administrator);
+                Console.WriteLine("[+] Recording screen...");
+                record = true;
             }
+            
+            if (int.TryParse(commands[2], out int result))
+                timeToRecord = result;
+            else
+                Console.WriteLine("[-] Error: third argument is not an integer, using the default of 10s");
 
-            if(isElevated)
+            return GetWriteLocation(commands[1]);
+        }
+        
+        if (commands.Count() == 2)
+        {
+            if (commands[0] == "record")
             {
-                Console.WriteLine("[+] User is admin, continuing...");
-                uint sessionID = GetTerminalServicesSessionId();
-                if (sessionID == 0)
+                Console.WriteLine("[+] Recording screen...");
+                record = true;
+            }
+            if (int.TryParse(commands[1], out int result))
+            {
+                Console.WriteLine("[+] Using record time of {0} seconds", result);
+                timeToRecord = result;
+                return GetWriteLocation(String.Empty);
+            }
+            else
+            {
+                return GetWriteLocation(commands[1]);
+            }
+        }
+        
+        if (commands.Count() == 1 && commands[0] == "record")
+        {
+            record = true;
+            return GetWriteLocation(String.Empty);
+        }
+        else if (commands.Count() == 1)
+            return GetWriteLocation(commands[0]);
+
+        if (String.IsNullOrEmpty(string.Join("",commands)))
+            return GetWriteLocation(String.Empty);
+
+        //should never reach this
+        return null;
+    }
+
+    public static void Main(string[] args)
+    {
+        // Parse args -> creates a string from array -> checks for no args -> checks if the file already exists -> screenshot
+        string filePath;
+        bool isElevated;
+
+        filePath = ParseArgs(args);
+
+        if (filePath == null)
+        {
+            Console.WriteLine("Error in parsing arguments. Try again");
+            Application.Exit();
+        }
+
+        Console.WriteLine("[+] Screenshot/video save location: " + Path.GetFullPath(filePath));
+
+        Console.CancelKeyPress += delegate {
+            Console.WriteLine("Exiting application gracefully...");
+            try
+            {
+                vf.Close();
+            }
+            catch
+            {
+                Application.Exit();
+            }
+        };
+
+        if (!record)
+        {
+            try
+            {
+                Shooter(filePath);
+            }
+            catch (System.ComponentModel.Win32Exception)
+            {
+                Console.WriteLine("[+] User may be running inside RDP session, attempting to attach with tscon...\n");
+
+                using (WindowsIdentity identity = WindowsIdentity.GetCurrent())
                 {
-                    Console.WriteLine("\n[-] Session ID is 0 which means you're probably running as SYSTEM");
-                    Console.WriteLine("[-] Try running as user in a high integrity context");
+                    WindowsPrincipal principal = new WindowsPrincipal(identity);
+                    isElevated = principal.IsInRole(WindowsBuiltInRole.Administrator);
+                }
+
+                if (isElevated)
+                {
+                    Console.WriteLine("[+] User is admin, continuing...");
+                    uint sessionID = GetTerminalServicesSessionId();
+                    if (sessionID == 0)
+                    {
+                        Console.WriteLine("\n[-] Session ID is 0 which means you're probably running as SYSTEM");
+                        Console.WriteLine("[-] Try running as user in a high integrity context instead");
+                    }
+                    else
+                    {
+                        //Grab the session ID for the current process
+                        var winDir = System.Environment.GetEnvironmentVariable("WINDIR");
+                        Process.Start(Path.Combine(winDir, "system32", "tscon.exe"),
+                            String.Format("{0} /dest:console", GetTerminalServicesSessionId()))
+                        .WaitForExit();
+                        Thread.Sleep(1000);
+
+                        Shooter(filePath);
+                    }
                 }
                 else
                 {
-                    //Grab the session ID for the current process
-                    var winDir = System.Environment.GetEnvironmentVariable("WINDIR");
-                    Process.Start(Path.Combine(winDir, "system32", "tscon.exe"),
-                        String.Format("{0} /dest:console", GetTerminalServicesSessionId()))
-                    .WaitForExit();
-                    Thread.Sleep(1000);
-
-                    Shooter(filePath);
+                    Console.WriteLine("\n[-] Not running with Administrator privileges, please rerun as admin");
+                    return;
                 }
             }
-            else
+            catch (System.Runtime.InteropServices.ExternalException)
             {
-                Console.WriteLine("\n[-] Not running with Administrator privileges, please rerun as admin");
-                return;
-            }           
+                Console.WriteLine("[-] Error with path given (unable to save bitmap there)\n");
+                filePath = GetWriteLocation(String.Empty);
+                Console.WriteLine("[+] Using default screenshot location: " + Path.GetFullPath(filePath));
+                Shooter(filePath);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
         }
-        catch (System.Runtime.InteropServices.ExternalException)
+        else
         {
-            Console.WriteLine("[-] Error with path given (unable to save bitmap there)\n");
-            filePath = appPath + "\\" + DateTime.Now.ToString("M-dd-yyyy_HH-mm-ss") + ".png";
-            Console.WriteLine("[+] Using default screenshot location: " + Path.GetFullPath(filePath));
-            Shooter(filePath);
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine(e);
+            // We'll make this more complex later
+            try
+            {
+                Watcher2(filePath);
+            }
+            catch (System.IO.IOException)
+            {
+                Console.WriteLine("Something happened with args, using defaults");
+                timeToRecord = 10;
+                filePath = GetWriteLocation(String.Empty);
+                Console.WriteLine("[+] Using default video save location: " + Path.GetFullPath(filePath));
+                Watcher2(filePath);
+            }
         }
     }
 }
