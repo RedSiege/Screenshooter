@@ -104,8 +104,8 @@ class Program
                 {
                     Dispatcher.CurrentDispatcher.Invoke(() =>
                     {
-                            //Console.Write(String.Format("\rElapsed: {0}s:{1}ms", _stopWatch.Elapsed.Seconds, _stopWatch.Elapsed.Milliseconds));
-                        });
+                        //Console.Write(String.Format("\rElapsed: {0}s:{1}ms", _stopWatch.Elapsed.Seconds, _stopWatch.Elapsed.Milliseconds));
+                    });
                 }
                 await Task.Delay(10);
             }
@@ -313,13 +313,18 @@ class Program
         return null;
     }
 
+
+
+
+
+
     public static void Main(string[] args)
     {
 
         try
         {
             //ResourceExtractor.ExtractResourceToFile("Screenshooter.ScreenRecorderLib.dll", "unmanagedservice.dll");
-            Load();
+            //Load();
         }
         catch (Exception e)
         {
@@ -496,4 +501,3 @@ class Program
         return Assembly.LoadFile(tempFile);
     }
 }
-

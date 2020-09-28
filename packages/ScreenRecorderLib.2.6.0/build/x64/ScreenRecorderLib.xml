@@ -4,6 +4,21 @@
         "ScreenRecorderLib"
     </assembly>
     <members>
+        <member name="P:ScreenRecorderLib.RecorderOptions.LogSeverityLevel">
+            <summary>
+The maximum level of the logs to write.
+</summary>
+        </member>
+        <member name="P:ScreenRecorderLib.RecorderOptions.LogFilePath">
+            <summary>
+A path to a file to write logs to. If this is not empty, all logs will be redirected to it.
+</summary>
+        </member>
+        <member name="P:ScreenRecorderLib.RecorderOptions.IsLogEnabled">
+            <summary>
+Toggles logging. Default is on when debugging, off in release mode, this setting overrides it.
+</summary>
+        </member>
         <member name="P:ScreenRecorderLib.RecorderOptions.IsFragmentedMp4Enabled">
             <summary>
 Fragments the video into a list of individually playable blocks. This allows playback of video segments that has no end, i.e. live streaming.
@@ -27,6 +42,11 @@ Faster rendering, but can affect quality. Use when speed is more important than 
         <member name="P:ScreenRecorderLib.RecorderOptions.IsThrottlingDisabled">
             <summary>
 Disable throttling of video renderer. If this is disabled, all frames are sent to renderer as fast as they come. Can cause out of memory crashes.
+</summary>
+        </member>
+        <member name="P:ScreenRecorderLib.MouseOptions.MouseClickDetectionMode">
+            <summary>
+The mode for detecting mouse clicks. Default is Polling.
 </summary>
         </member>
         <member name="P:ScreenRecorderLib.MouseOptions.MouseClickDetectionDuration">
@@ -136,6 +156,16 @@ Select monitor to record via device name, e.g.\\.\DISPLAY1
         </member>
         <member name="F:ScreenRecorderLib.RecorderMode.Video">
             <summary>Record as mp4 video in h264 format. </summary>
+        </member>
+        <member name="F:ScreenRecorderLib.MouseDetectionMode.Hook">
+            <summary>
+Use a low level system hook for detecting mouse clicks. Works more reliably for programmatic events, but can negatively affect mouse performance while recording.
+</summary>
+        </member>
+        <member name="F:ScreenRecorderLib.MouseDetectionMode.Polling">
+            <summary>
+Use polling for detecting mouse clicks. Does not affect mouse performance, but may not work for all mouse clicks generated programmatically.
+</summary>
         </member>
         <member name="M:WWMFResampler.Finalize">
 Finalize must be called even when Initialize() is failed
