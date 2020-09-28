@@ -7,18 +7,165 @@ using System.Windows.Forms;
 using System.Diagnostics;
 using System.Security.Principal;
 using System.Threading;
-using Accord.Video.FFMPEG;
+using ScreenRecorderLib;
+using System.Threading.Tasks;
+using System.Timers;
+using System.Reflection;
+using System.Security.Cryptography;
+using System.Windows.Threading;
+using System.Runtime.InteropServices;
+using System.ComponentModel;
+
+// Borrowed from Nick - https://stackoverflow.com/a/72296
+public static class ResourceExtractor
+{
+    public static void ExtractResourceToFile(string resourceName, string filename)
+    {
+        if (!System.IO.File.Exists(filename))
+            using (System.IO.Stream s = System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName))
+            using (System.IO.FileStream fs = new System.IO.FileStream(filename, System.IO.FileMode.Create))
+            {
+                byte[] b = new byte[s.Length];
+                s.Read(b, 0, b.Length);
+                fs.Write(b, 0, b.Length);
+            }
+    }
+}
+
 
 class Program
 {
-    [System.Runtime.InteropServices.DllImport("user32.dll")]
+
+
+    [DllImport("user32.dll")]
     static extern bool SetProcessDPIAware();
     static bool record = false;
     static int timeToRecord = 10;
-    public static VideoFileWriter vf = new VideoFileWriter();
-    static System.Windows.Forms.Timer myTimer = new System.Windows.Forms.Timer();
-    static int alarmCounter = 1;
     static bool exitFlag = false;
+    private static bool _isRecording;
+    private static bool isDone = false;
+    private static Stopwatch _stopWatch;
+    public static Recorder rec;
+
+    private static void OnTimedEvent(object source, ElapsedEventArgs e)
+    {
+        exitFlag = true;
+    }
+
+
+    [DllImport("ScreenRecorderLib.dll")] public extern static Recorder GetRecorder();
+
+
+    private static void Watcher(string filePath)
+    {
+        // Borrowed from the great coder(s) at https://github.com/sskodje/ScreenRecorderLib/blob/master/TestConsoleApp/Program.cs
+        RecorderOptions options = new RecorderOptions
+        {
+            RecorderMode = RecorderMode.Video,
+            //If throttling is disabled, out of memory exceptions may eventually crash the program,
+            //depending on encoder settings and system specifications.
+            IsThrottlingDisabled = false,
+            //Hardware encoding is enabled by default.
+            IsHardwareEncodingEnabled = true,
+            //Low latency mode provides faster encoding, but can reduce quality.
+            IsLowLatencyEnabled = true,
+            //Fast start writes the mp4 header at the beginning of the file, to facilitate streaming.
+            IsMp4FastStartEnabled = false,
+            VideoOptions = new VideoOptions
+            {
+                BitrateMode = BitrateControlMode.UnconstrainedVBR,
+                Bitrate = 8000 * 1000,
+                Framerate = 24,
+                IsFixedFramerate = false,
+                EncoderProfile = H264Profile.Main
+            },
+        };
+
+        rec = Recorder.CreateRecorder(options);
+        rec.OnRecordingFailed += Rec_OnRecordingFailed;
+        rec.OnRecordingComplete += Rec_OnRecordingComplete;
+        rec.OnStatusChanged += Rec_OnStatusChanged;
+
+        System.Timers.Timer aTimer = new System.Timers.Timer();
+        aTimer.Elapsed += new ElapsedEventHandler(OnTimedEvent);
+        aTimer.Interval = timeToRecord * 1000;
+        aTimer.Start();
+
+        rec.Record(filePath);
+        CancellationTokenSource cts = new CancellationTokenSource();
+        var token = cts.Token;
+        Task.Run(async () =>
+        {
+            while (true)
+            {
+                if (token.IsCancellationRequested)
+                    return;
+                if (_isRecording)
+                {
+                    Dispatcher.CurrentDispatcher.Invoke(() =>
+                    {
+                            //Console.Write(String.Format("\rElapsed: {0}s:{1}ms", _stopWatch.Elapsed.Seconds, _stopWatch.Elapsed.Milliseconds));
+                        });
+                }
+                await Task.Delay(10);
+            }
+        }, token);
+        while (true)
+        {
+            if (exitFlag == true)
+            {
+                break;
+            }
+        }
+
+        cts.Cancel();
+        rec.Stop();
+        while (!isDone)
+        {
+            Thread.Sleep(1000);
+        }
+        //Console.ReadKey();
+    }
+
+    private static void Rec_OnStatusChanged(object sender, RecordingStatusEventArgs e)
+    {
+        switch (e.Status)
+        {
+            case RecorderStatus.Idle:
+                //Console.WriteLine("Recorder is idle");
+                break;
+            case RecorderStatus.Recording:
+                _stopWatch = new Stopwatch();
+                _stopWatch.Start();
+                _isRecording = true;
+                Console.WriteLine("[+] Recording started");
+                break;
+            case RecorderStatus.Paused:
+                Console.WriteLine("Recording paused");
+                break;
+            case RecorderStatus.Finishing:
+                Console.WriteLine("[+] Finishing encoding");
+                break;
+            default:
+                break;
+        }
+    }
+
+    private static void Rec_OnRecordingComplete(object sender, RecordingCompleteEventArgs e)
+    {
+        Console.WriteLine("[+] Recording completed");
+        _isRecording = false;
+        _stopWatch?.Stop();
+        Console.WriteLine(String.Format("File: {0}", e.FilePath));
+        isDone = true;
+    }
+
+    private static void Rec_OnRecordingFailed(object sender, RecordingFailedEventArgs e)
+    {
+        Console.WriteLine("Recording failed with: " + e.Error);
+        _isRecording = false;
+        _stopWatch?.Stop();
+    }
 
     private static Bitmap Shooter(string filePath)
     {
@@ -42,65 +189,6 @@ class Program
         {
             return screenshot;
         }
-
-    }
-
-    // This is the method to run when the timer is raised.
-    // https://docs.microsoft.com/en-us/dotnet/api/system.windows.forms.timer?view=netcore-3.1
-    private static void TimerEventProcessor(Object myObject, EventArgs myEventArgs)
-    {
-        //myTimer.Stop();
-
-        // Displays a message box asking whether to continue running the timer.
-        if (alarmCounter < timeToRecord * 10)
-        {
-            Bitmap screenGrab = Shooter(String.Empty);
-            vf.WriteVideoFrame(screenGrab);
-
-            // Restarts the timer and increments the counter.
-            alarmCounter += 1;
-            //myTimer.Enabled = true;
-        }
-        else
-        {
-            // Stops the timer.
-            exitFlag = true;
-        }
-    }
-
-    private static void Watcher2(string filePath)
-    {
-        Console.WriteLine("Entered watcher2");
-        int videoBitRate = 1200 * 1000;
-        vf.Open(filePath, SystemInformation.VirtualScreen.Width, SystemInformation.VirtualScreen.Height, 24, VideoCodec.MPEG4, videoBitRate);
-        for (int i = 0; i < timeToRecord + 2; i++)
-        {
-            Bitmap screenGrab = Shooter(String.Empty);
-            vf.WriteVideoFrame(screenGrab, TimeSpan.FromSeconds(i));
-            Thread.Sleep(1000);
-        }
-        Thread.Sleep(1000);
-        vf.Close();
-
-    }
-
-    private static void Watcher(string filePath)
-    {
-        myTimer.Tick += new EventHandler(TimerEventProcessor);
-
-        vf.Open(filePath, SystemInformation.VirtualScreen.Width, SystemInformation.VirtualScreen.Height, 500, VideoCodec.MPEG4, 50000000);
-
-        // Sets the timer interval to 1 seconds.
-        myTimer.Interval = 1000;
-        myTimer.Start();
-
-        // Runs the timer, and raises the event.
-        while (exitFlag == false)
-        {
-            // Processes all the events in the queue.
-            Application.DoEvents();
-        }
-        vf.Close();
     }
 
     [System.Runtime.InteropServices.DllImport("kernel32.dll")]
@@ -125,10 +213,10 @@ class Program
         string extension;
 
         if (record)
-            extension = ".avi";
+            extension = ".mp4";
         else
             extension = ".png";
-        
+
         if (String.IsNullOrEmpty(filePath))
             return appPath + "\\" + DateTime.Now.ToString("M-dd-yyyy_HH-mm-ss") + extension;
 
@@ -182,7 +270,7 @@ class Program
                 Console.WriteLine("[+] Recording screen...");
                 record = true;
             }
-            
+
             if (int.TryParse(commands[2], out int result))
                 timeToRecord = result;
             else
@@ -190,7 +278,7 @@ class Program
 
             return GetWriteLocation(commands[1]);
         }
-        
+
         if (commands.Count() == 2)
         {
             if (commands[0] == "record")
@@ -209,7 +297,7 @@ class Program
                 return GetWriteLocation(commands[1]);
             }
         }
-        
+
         if (commands.Count() == 1 && commands[0] == "record")
         {
             record = true;
@@ -218,7 +306,7 @@ class Program
         else if (commands.Count() == 1)
             return GetWriteLocation(commands[0]);
 
-        if (String.IsNullOrEmpty(string.Join("",commands)))
+        if (String.IsNullOrEmpty(string.Join("", commands)))
             return GetWriteLocation(String.Empty);
 
         //should never reach this
@@ -227,6 +315,18 @@ class Program
 
     public static void Main(string[] args)
     {
+
+        try
+        {
+            //ResourceExtractor.ExtractResourceToFile("Screenshooter.ScreenRecorderLib.dll", "unmanagedservice.dll");
+            Load();
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+        }
+
+
         // Parse args -> creates a string from array -> checks for no args -> checks if the file already exists -> screenshot
         string filePath;
         bool isElevated;
@@ -241,11 +341,17 @@ class Program
 
         Console.WriteLine("[+] Screenshot/video save location: " + Path.GetFullPath(filePath));
 
-        Console.CancelKeyPress += delegate {
-            Console.WriteLine("Exiting application gracefully...");
+        Console.CancelKeyPress += delegate
+        {
+            Console.WriteLine("\n[:(] Rage Quit huh? Attempting to exit the application gracefully...\n");
             try
             {
-                vf.Close();
+                rec.Stop();
+                while (!isDone)
+                {
+                    Thread.Sleep(1000);
+                }
+                Application.Exit();
             }
             catch
             {
@@ -313,17 +419,81 @@ class Program
             // We'll make this more complex later
             try
             {
-                Watcher2(filePath);
+                Watcher(filePath);
             }
-            catch (System.IO.IOException)
+            catch (System.IO.IOException e)
             {
+                Console.WriteLine(e);
                 Console.WriteLine("Something happened with args, using defaults");
                 timeToRecord = 10;
                 filePath = GetWriteLocation(String.Empty);
                 Console.WriteLine("[+] Using default video save location: " + Path.GetFullPath(filePath));
-                Watcher2(filePath);
+                Watcher(filePath);
+            }
+            catch (Exception a)
+            {
+                Console.WriteLine(a);
             }
         }
+    }
+
+    public static Assembly Load()
+    {
+        // Get the byte[] of the DLL
+        byte[] ba = null;
+        string resource = "Screenshooter.ScreenRecorderLib.dll";
+        Assembly curAsm = Assembly.GetExecutingAssembly();
+        using (Stream stm = curAsm.GetManifestResourceStream(resource))
+        {
+            ba = new byte[(int)stm.Length];
+            stm.Read(ba, 0, (int)stm.Length);
+        }
+
+        bool fileOk = false;
+        string tempFile = "";
+
+        using (SHA1CryptoServiceProvider sha1 = new SHA1CryptoServiceProvider())
+        {
+            // Get the hash value of the Embedded DLL
+            string fileHash = BitConverter.ToString(sha1.ComputeHash(ba)).Replace("-", string.Empty);
+
+            // The full path of the DLL that will be saved
+            tempFile = Path.GetTempPath() + "ScreenRecorderLib.dll";
+
+            // Check if the DLL is already existed or not?
+            if (File.Exists(tempFile))
+            {
+                // Get the file hash value of the existed DLL
+                byte[] bb = File.ReadAllBytes(tempFile);
+                string fileHash2 = BitConverter.ToString(sha1.ComputeHash(bb)).Replace("-", string.Empty);
+
+                // Compare the existed DLL with the Embedded DLL
+                if (fileHash == fileHash2)
+                {
+                    // Same file
+                    fileOk = true;
+                }
+                else
+                {
+                    // Not same
+                    fileOk = false;
+                }
+            }
+            else
+            {
+                // The DLL is not existed yet
+                fileOk = false;
+            }
+        }
+
+        // Create the file on disk
+        if (!fileOk)
+        {
+            System.IO.File.WriteAllBytes(tempFile, ba);
+        }
+
+        // Load it into memory    
+        return Assembly.LoadFile(tempFile);
     }
 }
 
