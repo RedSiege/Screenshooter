@@ -1,0 +1,200 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        "ScreenRecorderLib"
+    </assembly>
+    <members>
+        <member name="P:ScreenRecorderLib.RecorderOptions.LogSeverityLevel">
+            <summary>
+The maximum level of the logs to write.
+</summary>
+        </member>
+        <member name="P:ScreenRecorderLib.RecorderOptions.LogFilePath">
+            <summary>
+A path to a file to write logs to. If this is not empty, all logs will be redirected to it.
+</summary>
+        </member>
+        <member name="P:ScreenRecorderLib.RecorderOptions.IsLogEnabled">
+            <summary>
+Toggles logging. Default is on when debugging, off in release mode, this setting overrides it.
+</summary>
+        </member>
+        <member name="P:ScreenRecorderLib.RecorderOptions.IsFragmentedMp4Enabled">
+            <summary>
+Fragments the video into a list of individually playable blocks. This allows playback of video segments that has no end, i.e. live streaming.
+</summary>
+        </member>
+        <member name="P:ScreenRecorderLib.RecorderOptions.IsMp4FastStartEnabled">
+            <summary>
+Place the mp4 header at the start of the file instead of the end. This allows streaming to start before entire file is downloaded.
+</summary>
+        </member>
+        <member name="P:ScreenRecorderLib.RecorderOptions.IsHardwareEncodingEnabled">
+            <summary>
+Enable hardware encoding if available. This is enabled by default.
+</summary>
+        </member>
+        <member name="P:ScreenRecorderLib.RecorderOptions.IsLowLatencyEnabled">
+            <summary>
+Faster rendering, but can affect quality. Use when speed is more important than quality.
+</summary>
+        </member>
+        <member name="P:ScreenRecorderLib.RecorderOptions.IsThrottlingDisabled">
+            <summary>
+Disable throttling of video renderer. If this is disabled, all frames are sent to renderer as fast as they come. Can cause out of memory crashes.
+</summary>
+        </member>
+        <member name="P:ScreenRecorderLib.MouseOptions.MouseClickDetectionMode">
+            <summary>
+The mode for detecting mouse clicks. Default is Polling.
+</summary>
+        </member>
+        <member name="P:ScreenRecorderLib.MouseOptions.MouseClickDetectionDuration">
+            <summary>
+The duration of the dot shown where the left mouse button is pressed, in milliseconds. Default is 150.
+</summary>
+        </member>
+        <member name="P:ScreenRecorderLib.MouseOptions.MouseClickDetectionRadius">
+            <summary>
+The radius of the dot where the left mouse button is pressed. Default is 20.
+</summary>
+        </member>
+        <member name="P:ScreenRecorderLib.MouseOptions.MouseRightClickDetectionColor">
+            <summary>
+The color of the dot where the right mouse button is pressed, in hex format. Default is Yellow (#FFFF00).
+</summary>
+        </member>
+        <member name="P:ScreenRecorderLib.MouseOptions.MouseClickDetectionColor">
+            <summary>
+The color of the dot where the left mouse button is pressed, in hex format. Default is Yellow (#FFFF00).
+</summary>
+        </member>
+        <member name="P:ScreenRecorderLib.MouseOptions.IsMouseClicksDetected">
+            <summary>
+Display a colored dot where the left mouse button is pressed.
+</summary>
+        </member>
+        <member name="P:ScreenRecorderLib.MouseOptions.IsMousePointerEnabled">
+            <summary>
+Display the mouse cursor on the recording
+</summary>
+        </member>
+        <member name="P:ScreenRecorderLib.AudioOptions.AudioInputDevice">
+            <summary>
+Audio input device to capture audio from. Pass null or empty string to select system default.
+</summary>
+        </member>
+        <member name="P:ScreenRecorderLib.AudioOptions.AudioOutputDevice">
+            <summary>
+Audio playback device to capture audio from. Pass null or empty string to select system default.
+</summary>
+        </member>
+        <member name="P:ScreenRecorderLib.AudioOptions.IsInputDeviceEnabled">
+            <summary>
+Enable to record system audio input (e.g. microphone)
+</summary>
+        </member>
+        <member name="P:ScreenRecorderLib.AudioOptions.IsOutputDeviceEnabled">
+            <summary>
+Enable to record system audio output.
+</summary>
+        </member>
+        <member name="P:ScreenRecorderLib.VideoOptions.SnapshotFormat">
+            <summary>
+Image format for snapshots. This is only used with Snapshot and Slideshow modes.
+</summary>
+        </member>
+        <member name="P:ScreenRecorderLib.VideoOptions.IsFixedFramerate">
+            <summary>
+Send data to the video encoder every frame, even if it means duplicating the previous frame(s). Can fix stutter issues in fringe cases, but uses more resources.
+</summary>
+        </member>
+        <member name="P:ScreenRecorderLib.VideoOptions.Quality">
+            <summary>
+Video quality. This is only used when BitrateMode is set to Quality.
+</summary>
+        </member>
+        <member name="P:ScreenRecorderLib.VideoOptions.Bitrate">
+            <summary>
+Bitrate in bits per second
+</summary>
+        </member>
+        <member name="P:ScreenRecorderLib.VideoOptions.Framerate">
+            <summary>
+Framerate in frames per second.
+</summary>
+        </member>
+        <member name="P:ScreenRecorderLib.VideoOptions.BitrateMode">
+            <summary>
+The bitrate control mode of the video encoder. Default is Quality.
+</summary>
+        </member>
+        <member name="M:ScreenRecorderLib.DisplayOptions.#ctor(System.String,System.Int32,System.Int32,System.Int32,System.Int32)">
+            <summary>
+Select monitor to record via device name, e.g.\\.\DISPLAY1, and the rectangle to record on that monitor.
+</summary>
+        </member>
+        <member name="M:ScreenRecorderLib.DisplayOptions.#ctor(System.String)">
+            <summary>
+Select monitor to record via device name, e.g.\\.\DISPLAY1
+</summary>
+        </member>
+        <member name="F:ScreenRecorderLib.BitrateControlMode.Quality">
+            <summary>Quality-based VBR encoding. The encoder selects the bit rate to match a specified quality level. Set Quality level in VideoOptions from 1-100. Default is 70. </summary>
+        </member>
+        <member name="F:ScreenRecorderLib.BitrateControlMode.UnconstrainedVBR">
+            <summary>Default is unconstrained variable bitrate. Overall bitrate will average towards the Bitrate property, but can fluctuate greatly over and under it.</summary>
+        </member>
+        <member name="F:ScreenRecorderLib.BitrateControlMode.CBR">
+            <summary>Constant bitrate. Faster encoding than VBR, but produces larger files with consistent size. This setting might not work on software encoding. </summary>
+        </member>
+        <member name="F:ScreenRecorderLib.RecorderMode.Snapshot">
+            <summary>Make a snapshot of the screen. </summary>
+        </member>
+        <member name="F:ScreenRecorderLib.RecorderMode.Slideshow">
+            <summary>Record one PNG picture for each frame. </summary>
+        </member>
+        <member name="F:ScreenRecorderLib.RecorderMode.Video">
+            <summary>Record as mp4 video in h264 format. </summary>
+        </member>
+        <member name="F:ScreenRecorderLib.MouseDetectionMode.Hook">
+            <summary>
+Use a low level system hook for detecting mouse clicks. Works more reliably for programmatic events, but can negatively affect mouse performance while recording.
+</summary>
+        </member>
+        <member name="F:ScreenRecorderLib.MouseDetectionMode.Polling">
+            <summary>
+Use polling for detecting mouse clicks. Does not affect mouse performance, but may not work for all mouse clicks generated programmatically.
+</summary>
+        </member>
+        <member name="M:WWMFResampler.Finalize">
+Finalize must be called even when Initialize() is failed
+</member>
+        <member name="M:WWMFResampler.Drain(System.UInt32!System.Runtime.CompilerServices.IsLong,WWMFSampleData*)">
+@param resampleInputBytes input buffer bytes of Resample(). this arg is used to calculate expected output buffer size
+@param sampleData_return [out] set fresh (its data shold not be allocated yet) WWMFSampleData instance as this arg
+</member>
+        <member name="M:WWMFResampler.Resample(System.Byte!System.Runtime.CompilerServices.IsConst*,System.UInt32!System.Runtime.CompilerServices.IsLong,WWMFSampleData*)">
+@bytes buffer bytes. must be smaller than approx. 512KB to convert 44100Hz to 192000Hz
+</member>
+        <member name="M:WWMFResampler.Initialize(WWMFPcmFormat!System.Runtime.CompilerServices.IsConst*!System.Runtime.CompilerServices.IsImplicitlyDereferenced,WWMFPcmFormat!System.Runtime.CompilerServices.IsConst*!System.Runtime.CompilerServices.IsImplicitlyDereferenced,System.Int32)">
+@param halfFilterLength conversion quality. 1(min) to 60 (max)
+</member>
+        <member name="M:WWMFSampleData.MoveAdd(WWMFSampleData*!System.Runtime.CompilerServices.IsImplicitlyDereferenced)">
+If this instance is not empty, rhs content is concatenated to this instance. rhs remains untouched.
+If this instance is empty, rhs content moves to this instance. rhs becomes empty.
+rhs.Release() must be called to release memory either way!
+
+</member>
+        <member name="M:WWMFSampleData.#ctor(System.Byte*,System.Int32)">
+@param aData must point new[] ed memory address
+</member>
+        <member name="T:WWMFSampleData">
+WWMFSampleData contains new[] ed byte buffer pointer(data) and buffer size(bytes).
+</member>
+        <member name="T:WWMFBitFormatType">
+sample data type. int or float
+it is compatible to WWBitFormatType on WasapiUser.h
+</member>
+    </members>
+</doc>
